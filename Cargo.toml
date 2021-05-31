@@ -1,0 +1,15 @@
+[package]
+name = "geometry_tools"
+version = "0.1.0"
+authors = ["ScanMountGoat <>"]
+description = "Efficient computation of geometry data such as normals and tangents"
+license = "MIT"
+documentation = "https://docs.rs/geometry_tools"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+glam = "0.15"
