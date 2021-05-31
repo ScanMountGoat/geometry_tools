@@ -1,10 +1,12 @@
 //! Efficient implementations for calculating geometry data for game assets using [glam](https://crates.io/crates/glam).
 
+pub use glam;
 use glam::Vec3A;
 
-pub mod ffi;
 pub mod bounding;
+pub mod ffi;
 
+pub use bounding::calculate_aabb_from_points;
 pub use bounding::calculate_bounding_sphere_from_points;
 
 /// Calculates smooth per-vertex normals by calculating normals for each face and averaging over the vertices.
