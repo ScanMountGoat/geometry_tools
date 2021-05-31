@@ -2,7 +2,12 @@ use glam::Vec3A;
 
 /// Calculates smooth per-vertex normals by calculating normals for each face and averaging over the vertices.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
+/// If either of `positions` or `indices` is empty, the result is empty.
 pub fn calculate_smooth_normals(positions: &[Vec3A], indices: &[i32]) -> Vec<Vec3A> {
+    if positions.is_empty() || indices.is_empty() {
+        return Vec::new();
+    }
+
     let mut normals = vec![Vec3A::ZERO; positions.len()];
     update_smooth_normals(positions, &mut normals, indices);
     normals
@@ -35,7 +40,7 @@ fn calculate_normal(v1: &Vec3A, v2: &Vec3A, v3: &Vec3A) -> Vec3A {
 
 pub mod ffi {
     use super::*;
-    
+
     #[no_mangle]
     pub extern "C" fn calculate_smooth_normals(
         pos: *const glam::Vec3A,
@@ -55,9 +60,77 @@ pub mod ffi {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::relative_eq;
 
     #[test]
-    fn calculate_smooth_normals_ffi() {
+    fn positive_normal() {
+        // Vertices facing the camera should be in counter-clockwise order.
+        let v1 = Vec3A::new(-5f32, 5f32, 1f32);
+        let v2 = Vec3A::new(-5f32, 0f32, 1f32);
+        let v3 = Vec3A::new(0f32, 0f32, 1f32);
+        let normal = calculate_normal(&v1, &v2, &v3).normalize();
+
+        assert_eq!(0f32, normal.x);
+        assert_eq!(0f32, normal.y);
+        assert_eq!(1f32, normal.z);
+    }
+
+    #[test]
+    fn negative_normal() {
+        // Vertices facing the camera in clockwise order.
+        let v1 = Vec3A::new(-5f32, 5f32, 1f32);
+        let v2 = Vec3A::new(-5f32, 0f32, 1f32);
+        let v3 = Vec3A::new(0f32, 0f32, 1f32);
+        let normal = calculate_normal(&v3, &v2, &v1).normalize();
+
+        assert_eq!(0f32, normal.x);
+        assert_eq!(0f32, normal.y);
+        assert_eq!(-1f32, normal.z);
+    }
+
+    #[test]
+    fn smooth_normals_no_points_no_indices() {
+        let normals = calculate_smooth_normals(&[], &[]);
+        assert!(normals.is_empty());
+    }
+
+    #[test]
+    fn smooth_normals_no_points() {
+        let normals = calculate_smooth_normals(&[], &[0, 1, 2]);
+        assert!(normals.is_empty());
+    }
+
+    #[test]
+    fn smooth_normals_no_indices() {
+        let points = vec![
+            Vec3A::new(1f32, 0f32, 0f32),
+            Vec3A::new(0f32, 1f32, 0f32),
+            Vec3A::new(0f32, 0f32, 1f32),
+        ];
+
+        let normals = calculate_smooth_normals(&points, &[]);
+        assert!(normals.is_empty());
+    }
+
+    #[test]
+    fn smooth_normals_three_points() {
+        let points = vec![
+            Vec3A::new(1f32, 0f32, 0f32),
+            Vec3A::new(0f32, 1f32, 0f32),
+            Vec3A::new(0f32, 0f32, 1f32),
+        ];
+
+        let normals = calculate_smooth_normals(&points, &[0, 1, 2]);
+
+        // Ensure vectors are normalized.
+        let delta = 0.0001f32;
+        assert!(relative_eq!(1f32, normals[0].length(), epsilon = delta));
+        assert!(relative_eq!(1f32, normals[1].length(), epsilon = delta));
+        assert!(relative_eq!(1f32, normals[2].length(), epsilon = delta));
+    }
+
+    #[test]
+    fn smooth_normals_ffi() {
         let pos = [Vec3A::ONE, Vec3A::ONE];
         let mut nrm = [Vec3A::ONE, Vec3A::ONE];
         let indices = [0, 1, 0, 1, 0, 1, 1, 1, 0];

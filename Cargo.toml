@@ -14,3 +14,6 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 glam = "0.15"
+
+[dev-dependencies]
+approx = "0.4.0"

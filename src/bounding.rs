@@ -7,9 +7,9 @@ use glam::Vec3A;
 /// use glam::Vec3A;
 ///
 /// let points = vec![
-///     Vec3A::new(-1f32 -1f32 -1f32),
-///     Vec3A::new( 0f32, 0f32, 0f32)
-///     Vec3A::new( 1f32, 1f32, 1f32),
+///     Vec3A::new(0f32, -1f32, -0f32),
+///     Vec3A::new(0f32,  0f32,  0f32),
+///     Vec3A::new(0f32,  1f32,  0f32),
 /// ];
 ///
 /// let (center, radius) = calculate_bounding_sphere_from_points(&points);
@@ -34,9 +34,9 @@ pub fn calculate_bounding_sphere_from_points(points: &[Vec3A]) -> (Vec3A, f32) {
 
     // Find the smallest radius that contains all points.
     let mut radius_squared = 0f32;
-    for length in points.iter().map(|p| p.distance_squared(center)) {
-        if length > radius_squared {
-            radius_squared = length;
+    for length_squared in points.iter().map(|p| p.distance_squared(center)) {
+        if length_squared > radius_squared {
+            radius_squared = length_squared;
         }
     }
 
