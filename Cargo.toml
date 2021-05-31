@@ -1,8 +1,8 @@
 [package]
 name = "geometry_tools"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["ScanMountGoat <>"]
-description = "Efficient computation of geometry data such as normals and tangents"
+description = "Efficient computation of single precision geometric data"
 license = "MIT"
 documentation = "https://docs.rs/geometry_tools"
 repository = "https://github.com/ScanMountGoat/geometry_tools"
