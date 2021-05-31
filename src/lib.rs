@@ -2,7 +2,10 @@
 
 use glam::Vec3A;
 
-mod ffi;
+pub mod ffi;
+pub mod bounding;
+
+pub use bounding::calculate_bounding_sphere_from_points;
 
 /// Calculates smooth per-vertex normals by calculating normals for each face and averaging over the vertices.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
