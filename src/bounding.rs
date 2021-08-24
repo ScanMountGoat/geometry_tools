@@ -1,3 +1,5 @@
+//! Functions for calculating bounding spheres and axis-aligned bounding boxes.
+
 use glam::Vec3A;
 
 /// Calculates a bounding sphere of the form `(center, radius)` that containts all the specified points.
