@@ -10,6 +10,8 @@ pub const DEFAULT_TANGENT: Vec3A = Vec3A::X;
 /// The bitangent value returned when any component is `NaN` or infinite.
 pub const DEFAULT_BITANGENT: Vec3A = Vec3A::Y;
 
+// TODO: Add a function to calculate 4 component tangents directly.
+
 pub fn calculate_tangents_bitangents(
     positions: &[Vec3A],
     normals: &[Vec3A],
@@ -61,7 +63,6 @@ pub fn calculate_tangents_bitangents(
 
     // Account for mirrored normal maps.
     for i in 0..bitangents.len() {
-        // TODO: Implement Gram–Schmidt orthogonalization.
         // The default bitangent may be parallel to the normal vector.
         if bitangents[i].cross(normals[i]).length_squared() != 0.0 {
             bitangents[i] = orthonormalize(&bitangents[i], &normals[i]);

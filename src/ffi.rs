@@ -1,1 +1,2 @@
-pub use crate::vectors::ffi::calculate_smooth_normals;
+//! Combined ffi functions from all modules.
+pub use crate::vectors::normal::ffi::*;

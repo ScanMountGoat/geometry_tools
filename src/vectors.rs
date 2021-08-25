@@ -4,11 +4,8 @@ use glam::Vec3A;
 pub use normal::calculate_smooth_normals;
 pub use tangent::{calculate_tangent_w, calculate_tangents_bitangents};
 
-mod normal;
-mod tangent;
-// TODO: This is confusing and should probably just be a separate module.
-// TODO: Use a single ffi module?
-pub use normal::ffi;
+pub(crate) mod normal;
+pub(crate) mod tangent;
 
 // TODO: Is there a way for this to work with vec2 and vec4 as well?
 /// Returns a normalized vector based on `target` that is orthogonal to `source` using the Gran-Schmidt process.
