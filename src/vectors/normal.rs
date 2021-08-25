@@ -17,7 +17,7 @@ pub fn calculate_smooth_normals(positions: &[Vec3A], indices: &[u32]) -> Vec<Vec
 // This allows another language such as C# to manage its own memory.
 pub(crate) fn update_smooth_normals(positions: &[Vec3A], normals: &mut [Vec3A], indices: &[u32]) {
     for i in (0..indices.len()).step_by(3) {
-        let i0 = indices[i + 0] as usize;
+        let i0 = indices[i] as usize;
         let i1 = indices[i + 1] as usize;
         let i2 = indices[i + 2] as usize;
 
@@ -27,8 +27,8 @@ pub(crate) fn update_smooth_normals(positions: &[Vec3A], normals: &mut [Vec3A], 
         normals[i2] += normal;
     }
 
-    for i in 0..normals.len() {
-        normals[i] = normals[i].normalize();
+    for normal in normals.iter_mut() {
+        *normal = normal.normalize();
     }
 }
 

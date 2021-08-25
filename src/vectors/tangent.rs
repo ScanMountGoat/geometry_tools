@@ -4,11 +4,10 @@ use glam::{Vec2, Vec3A};
 
 use crate::vectors::orthonormalize;
 
-// TODO: Match the formatting for Rust's std docs for these special values.
-/// The tangent value returned in place of [f32::NAN], [f32::INFINITY], or [f32::NEG_INFINITY].
+/// The tangent value returned when any component is `NaN` or infinite.
 pub const DEFAULT_TANGENT: Vec3A = Vec3A::X;
 
-/// The bitangent value returned in place of [f32::NAN], [f32::INFINITY], or [f32::NEG_INFINITY].
+/// The bitangent value returned when any component is `NaN` or infinite.
 pub const DEFAULT_BITANGENT: Vec3A = Vec3A::Y;
 
 pub fn calculate_tangents_bitangents(
