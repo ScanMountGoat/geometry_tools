@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-use glam::{Vec2, Vec3A};
+use glam::{Vec2, Vec3A, Vec4};
 
 use crate::vectors::orthonormalize;
 
@@ -12,6 +12,10 @@ pub const DEFAULT_BITANGENT: Vec3A = Vec3A::Y;
 
 // TODO: Add a function to calculate 4 component tangents directly.
 
+/// Calculates smooth per-vertex tangents and bitangents by averaging over the vertices in each face.
+/// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
+/// If either of `positions` or `indices` is empty, the result is empty.
+// TODO: Document
 pub fn calculate_tangents_bitangents(
     positions: &[Vec3A],
     normals: &[Vec3A],
@@ -79,18 +83,71 @@ pub fn calculate_tangents_bitangents(
     (tangents, bitangents)
 }
 
-/// Calculates the tangent sign, which is often stored in the W component for a 4 component tangent vector.
-/// The bitangent can be generated from the tangent and normal vector. This step will normally be done by shader code for the GPU.
+/// Calculates smooth per-vertex tangents by averaging over the vertices in each face.
+/// The 4th component contains the tangent sign and can be used to calculate the bitangent vectors.
+/// This step will normally be done by shader code for the GPU.
+///
+/// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
+/// If either of `positions` or `indices` is empty, the result is empty.
+/// # Examples
 /**
 ```rust
+use geometry_tools::vectors::calculate_tangents;
+use glam::Vec3A;
+
+# let positions = vec![glam::Vec3A::ZERO; 3];
+# let normals = vec![glam::Vec3A::ZERO; 3];
+# let uvs = vec![glam::Vec2::ZERO; 3];
+# let indices = vec![0, 1, 2];
+let tangents = calculate_tangents(&positions, &normals, &uvs, &indices);
+
+// This step is often done by shader code for the GPU.
+let bitangents: Vec<Vec3A> = tangents
+    .iter()
+    .zip(normals.iter())
+    .map(|(t, n)| Vec3A::from(*t).cross(*n) * t.w)
+    .collect();
+```
+ */
+pub fn calculate_tangents(
+    positions: &[Vec3A],
+    normals: &[Vec3A],
+    uvs: &[Vec2],
+    indices: &[u32],
+) -> Vec<Vec4> {
+    // TODO: This may eventually return some sort of error.
+    let (tangents, bitangents) = calculate_tangents_bitangents(positions, normals, uvs, indices);
+
+    // Compute the w component for each tangent.
+    // TODO: Compute this without computing and immediately discarding bitangent vectors?
+    tangents
+        .iter()
+        .zip(bitangents.iter())
+        .zip(normals.iter())
+        .map(|((t, b), n)| {
+            let w = calculate_tangent_w(t, b, n);
+            Vec4::new(t.x, t.y, t.z, w)
+        })
+        .collect()
+}
+
+/// Calculates the tangent sign of 1.0 or -1.0, which is often stored in the W component for a 4 component tangent vector.
+/// The bitangent can be generated from the tangent and normal vector.
+/// # Examples
+/**
+```rust
+use geometry_tools::vectors::calculate_tangent_w;
+
 # let tangent = glam::Vec3A::ZERO;
 # let bitangent = glam::Vec3A::ZERO;
 # let normal = glam::Vec3A::ZERO;
-let tangent_w = geometry_tools::vectors::calculate_tangent_w(&normal, &tangent, &bitangent);
-let generated_bitangent = normal.cross(tangent) * tangent_w;
+let tangent_w = calculate_tangent_w(&tangent, &bitangent, &normal);
+
+// This step is often done by shader code for the GPU.
+let bitangent = normal.cross(tangent) * tangent_w;
 ```
 */
-pub fn calculate_tangent_w(normal: &Vec3A, tangent: &Vec3A, bitangent: &Vec3A) -> f32 {
+pub fn calculate_tangent_w(tangent: &Vec3A, bitangent: &Vec3A, normal: &Vec3A) -> f32 {
     // 0.0 should stil return 1.0 to avoid generating black bitangents.
     if tangent.cross(*bitangent).dot(*normal) >= 0.0 {
         1.0
@@ -369,6 +426,53 @@ mod tests {
     }
 
     #[test]
+    fn triangle_list_single_triangle_with_w() {
+        let positions = vec![
+            Vec3A::new(0.0, 0.0, 0.0),
+            Vec3A::new(0.0, 1.0, 0.0),
+            Vec3A::new(1.0, 1.0, 0.0),
+        ];
+        let normals = vec![
+            Vec3A::new(0.0, 0.0, 1.0),
+            Vec3A::new(0.0, 0.0, 1.0),
+            Vec3A::new(0.0, 0.0, 1.0),
+        ];
+        let uvs = vec![
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(1.0, 1.0),
+        ];
+
+        let tangents = calculate_tangents(&positions, &normals, &uvs, &[0, 1, 2]);
+        let bitangents: Vec<Vec3A> = tangents
+            .iter()
+            .zip(normals.iter())
+            .map(|(t, n)| Vec3A::from(*t).cross(*n) * t.w)
+            .collect();
+        dbg!(&tangents);
+        dbg!(&bitangents);
+
+        assert_eq!(3, tangents.len());
+        assert_eq!(3, bitangents.len());
+
+        // The tangent should point in the direct of the U coordinate.
+        for tangent in tangents {
+            assert_relative_eq!(0.0, tangent.x, epsilon = EPSILON);
+            assert_relative_eq!(1.0, tangent.y, epsilon = EPSILON);
+            assert_relative_eq!(0.0, tangent.z, epsilon = EPSILON);
+        }
+
+        // The bitangent should be orthogonal to the tangent and normal.
+        // The only option in this case is to use the x-axis.
+        // TODO: Why is the sign flip necessary?
+        for bitangent in bitangents {
+            assert_relative_eq!(-1.0, bitangent.x, epsilon = EPSILON);
+            assert_relative_eq!(0.0, bitangent.y, epsilon = EPSILON);
+            assert_relative_eq!(0.0, bitangent.z, epsilon = EPSILON);
+        }
+    }
+
+    #[test]
     fn triangle_list_basic_cube_normalized_no_weird_floats() {
         let (tangents, bitangents) = calculate_tangents_bitangents(
             &cube_positions(),
@@ -394,8 +498,6 @@ mod tests {
         assert!(tangents.is_empty());
         assert!(bitangents.is_empty());
     }
-
-    // TODO: Test the actual values produced for a small set of test points?
 
     // TODO: Enable these tests once the return type is fixed.
     #[test]

@@ -1,8 +1,8 @@
 //! Functions for computing normal, tangent, and bitangent (binormal) vectors.
 
 use glam::Vec3A;
-pub use normal::calculate_smooth_normals;
-pub use tangent::{calculate_tangent_w, calculate_tangents_bitangents};
+pub use normal::*;
+pub use tangent::*;
 
 pub(crate) mod normal;
 pub(crate) mod tangent;

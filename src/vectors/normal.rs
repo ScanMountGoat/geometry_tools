@@ -1,6 +1,6 @@
 use glam::Vec3A;
 
-/// Calculates smooth per-vertex normals by calculating normals for each face and averaging over the vertices.
+/// Calculates smooth per-vertex normals by by averaging over the vertices in each face.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
 /// If either of `positions` or `indices` is empty, the result is empty.
 pub fn calculate_smooth_normals(positions: &[Vec3A], indices: &[u32]) -> Vec<Vec3A> {
