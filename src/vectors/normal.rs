@@ -74,7 +74,7 @@ pub mod ffi {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::relative_eq;
+    use approx::assert_relative_eq;
 
     const EPSILON: f32 = 0.0001;
 
@@ -139,9 +139,9 @@ mod tests {
         let normals = calculate_smooth_normals(&points, &[0, 1, 2]);
 
         // Ensure vectors are normalized.
-        assert!(relative_eq!(1f32, normals[0].length(), epsilon = EPSILON));
-        assert!(relative_eq!(1f32, normals[1].length(), epsilon = EPSILON));
-        assert!(relative_eq!(1f32, normals[2].length(), epsilon = EPSILON));
+        assert_relative_eq!(1f32, normals[0].length(), epsilon = EPSILON);
+        assert_relative_eq!(1f32, normals[1].length(), epsilon = EPSILON);
+        assert_relative_eq!(1f32, normals[2].length(), epsilon = EPSILON);
     }
 
     #[test]

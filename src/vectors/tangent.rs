@@ -2,6 +2,8 @@ use std::ops::Mul;
 
 use glam::{Vec2, Vec3A};
 
+use crate::vectors::orthonormalize;
+
 // TODO: Match the formatting for Rust's std docs for these special values.
 /// The tangent value returned in place of [f32::NAN], [f32::INFINITY], or [f32::NEG_INFINITY].
 pub const DEFAULT_TANGENT: Vec3A = Vec3A::X;
@@ -9,7 +11,6 @@ pub const DEFAULT_TANGENT: Vec3A = Vec3A::X;
 /// The bitangent value returned in place of [f32::NAN], [f32::INFINITY], or [f32::NEG_INFINITY].
 pub const DEFAULT_BITANGENT: Vec3A = Vec3A::Y;
 
-// TODO: Improve the specificity of the tests for this function.
 pub fn calculate_tangents_bitangents(
     positions: &[Vec3A],
     normals: &[Vec3A],
@@ -63,9 +64,9 @@ pub fn calculate_tangents_bitangents(
     for i in 0..bitangents.len() {
         // TODO: Implement Gram–Schmidt orthogonalization.
         // The default bitangent may be parallel to the normal vector.
-        // if bitangents[i].cross(normals[i]).length_squared() != 0.0 {
-        //     bitangents[i] = VectorUtils.Orthogonalize(bitangents[i], normals[i]);
-        // }
+        if bitangents[i].cross(normals[i]).length_squared() != 0.0 {
+            bitangents[i] = orthonormalize(&bitangents[i], &normals[i]);
+        }
         // TODO: Document why this flip is necessary.
         bitangents[i] *= -1.0;
     }
@@ -149,7 +150,7 @@ fn calculate_bitangent(pos_a: &Vec3A, pos_b: &Vec3A, uv_a: &Vec2, uv_b: &Vec2, r
 #[cfg(test)]
 mod tests {
     use super::*;
-    use approx::relative_eq;
+    use approx::{assert_relative_eq, relative_eq};
     use glam::Vec2;
 
     const EPSILON: f32 = 0.0001;
@@ -327,25 +328,43 @@ mod tests {
     }
 
     #[test]
-    fn triangle_list_three_vertices_normalized() {
-        let values3d = vec![
-            Vec3A::new(1.0, 0.0, 0.0),
+    fn triangle_list_single_triangle() {
+        let positions = vec![
+            Vec3A::new(0.0, 0.0, 0.0),
             Vec3A::new(0.0, 1.0, 0.0),
+            Vec3A::new(1.0, 1.0, 0.0),
+        ];
+        let normals = vec![
+            Vec3A::new(0.0, 0.0, 1.0),
+            Vec3A::new(0.0, 0.0, 1.0),
             Vec3A::new(0.0, 0.0, 1.0),
         ];
-        let values2d = vec![
-            Vec2::new(1.0, 0.0),
+        let uvs = vec![
             Vec2::new(0.0, 0.0),
-            Vec2::new(0.0, 1.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(1.0, 1.0),
         ];
 
         let (tangents, bitangents) =
-            calculate_tangents_bitangents(&values3d, &values3d, &values2d, &[0, 1, 2]);
+            calculate_tangents_bitangents(&positions, &normals, &uvs, &[0, 1, 2]);
 
-        // Ensure vectors are normalized.
-        for (tangent, bitangent) in tangents.iter().zip(bitangents) {
-            assert!(relative_eq!(1.0, tangent.length(), epsilon = EPSILON));
-            assert!(relative_eq!(1.0, bitangent.length(), epsilon = EPSILON));
+        assert_eq!(3, tangents.len());
+        assert_eq!(3, bitangents.len());
+
+        // The tangent should point in the direct of the U coordinate.
+        for tangent in tangents {
+            assert_relative_eq!(0.0, tangent.x, epsilon = EPSILON);
+            assert_relative_eq!(1.0, tangent.y, epsilon = EPSILON);
+            assert_relative_eq!(0.0, tangent.z, epsilon = EPSILON);
+        }
+
+        // The bitangent should be orthogonal to the tangent and normal.
+        // The only option in this case is to use the x-axis.
+        // TODO: Why is the sign flip necessary?
+        for bitangent in bitangents {
+            assert_relative_eq!(-1.0, bitangent.x, epsilon = EPSILON);
+            assert_relative_eq!(0.0, bitangent.y, epsilon = EPSILON);
+            assert_relative_eq!(0.0, bitangent.z, epsilon = EPSILON);
         }
     }
 
@@ -357,9 +376,13 @@ mod tests {
             &cube_uvs(),
             &cube_indices(),
         );
+
+        assert_eq!(24, tangents.len());
+        assert_eq!(24, bitangents.len());
+
         for (tangent, bitangent) in tangents.iter().zip(bitangents) {
-            assert!(relative_eq!(1.0, tangent.length(), epsilon = EPSILON));
-            assert!(relative_eq!(1.0, bitangent.length(), epsilon = EPSILON));
+            assert_relative_eq!(1.0, tangent.length(), epsilon = EPSILON);
+            assert_relative_eq!(1.0, bitangent.length(), epsilon = EPSILON);
             assert!(is_good_tangent_bitangent(tangent, &bitangent));
         }
     }
@@ -368,8 +391,8 @@ mod tests {
     fn triangle_list_no_vertices() {
         let (tangents, bitangents) = calculate_tangents_bitangents(&[], &[], &[], &[]);
 
-        assert_eq!(0, tangents.len());
-        assert_eq!(0, bitangents.len());
+        assert!(tangents.is_empty());
+        assert!(bitangents.is_empty());
     }
 
     // TODO: Test the actual values produced for a small set of test points?
