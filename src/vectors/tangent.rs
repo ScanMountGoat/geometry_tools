@@ -1,31 +1,78 @@
 use std::ops::Mul;
+use thiserror::Error;
 
 use glam::{Vec2, Vec3A, Vec4};
 
 use crate::vectors::orthonormalize;
 
-/// The tangent value returned when any component is `NaN` or infinite.
+/// The value returned when any component of the calculated tangent would be `NaN` or infinite.
 pub const DEFAULT_TANGENT: Vec3A = Vec3A::X;
 
-/// The bitangent value returned when any component is `NaN` or infinite.
+/// The value returned when any component of the calculated bitangent would be `NaN` or infinite.
 pub const DEFAULT_BITANGENT: Vec3A = Vec3A::Y;
+
+/// Errors that can occur while calculating tangents or bitangents.
+#[derive(Error, Debug)]
+pub enum TangentBitangentError {
+    #[error(
+        "The list sizes do not match. Positions: {}, Normals: {}, uvs: {}.",
+        position_count,
+        normal_count,
+        uv_count
+    )]
+    AttributeCountMismatch {
+        position_count: usize,
+        normal_count: usize,
+        uv_count: usize,
+    },
+    #[error(
+        "A vertex index count of {} is not supported. Expected {} to be divisible by 3.",
+        index_count,
+        index_count
+    )]
+    InvalidIndexCont { index_count: usize },
+}
 
 /// Calculates smooth per-vertex tangents and bitangents by averaging over the vertices in each face.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
 /// If either of `positions` or `indices` is empty, the result is empty.
-// TODO: Document
+/// # Examples
+/**
+```rust
+use geometry_tools::vectors::calculate_tangents_bitangents;
+use glam::Vec3A;
+
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+# let positions = vec![glam::Vec3A::ZERO; 3];
+# let normals = vec![glam::Vec3A::ZERO; 3];
+# let uvs = vec![glam::Vec2::ZERO; 3];
+# let indices = vec![0, 1, 2];
+// Some applications require multiplying the resulting bitangents by -1.0.
+let (tangents, bitangents) = calculate_tangents_bitangents(&positions, &normals, &uvs, &indices)?;
+# Ok(())
+# }
+```
+ */
 pub fn calculate_tangents_bitangents(
     positions: &[Vec3A],
     normals: &[Vec3A],
     uvs: &[Vec2],
     indices: &[u32],
-) -> (Vec<Vec3A>, Vec<Vec3A>) {
-    // TODO: Return an error type.
-    // if (normals.Count != positions.Count)
-    //     throw new System.ArgumentOutOfRangeException(nameof(normals), "Vector source lengths do not match.");
+) -> Result<(Vec<Vec3A>, Vec<Vec3A>), TangentBitangentError> {
+    // TODO: Empty lists?
+    if indices.len() % 3 != 0 {
+        return Err(TangentBitangentError::InvalidIndexCont {
+            index_count: indices.len(),
+        });
+    }
 
-    // if (uvs.Count != positions.Count)
-    //     throw new System.ArgumentOutOfRangeException(nameof(uvs), "Vector source lengths do not match.");
+    if !(positions.len() == normals.len() && normals.len() == uvs.len()) {
+        return Err(TangentBitangentError::AttributeCountMismatch {
+            position_count: positions.len(),
+            normal_count: normals.len(),
+            uv_count: uvs.len(),
+        });
+    }
 
     let mut tangents = vec![Vec3A::ZERO; positions.len()];
     let mut bitangents = vec![Vec3A::ZERO; positions.len()];
@@ -76,7 +123,7 @@ pub fn calculate_tangents_bitangents(
         bitangents[i] = bitangents[i].normalize();
     }
 
-    (tangents, bitangents)
+    Ok((tangents, bitangents))
 }
 
 /// Calculates smooth per-vertex tangents by averaging over the vertices in each face.
@@ -91,11 +138,12 @@ pub fn calculate_tangents_bitangents(
 use geometry_tools::vectors::calculate_tangents;
 use glam::Vec3A;
 
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 # let positions = vec![glam::Vec3A::ZERO; 3];
 # let normals = vec![glam::Vec3A::ZERO; 3];
 # let uvs = vec![glam::Vec2::ZERO; 3];
 # let indices = vec![0, 1, 2];
-let tangents = calculate_tangents(&positions, &normals, &uvs, &indices);
+let tangents = calculate_tangents(&positions, &normals, &uvs, &indices)?;
 
 // This step is often done by shader code for the GPU.
 // Some applications require multiplying the resulting bitangents by -1.0.
@@ -104,6 +152,8 @@ let bitangents: Vec<Vec3A> = tangents
     .zip(normals.iter())
     .map(|(t, n)| Vec3A::from(*t).cross(*n) * t.w)
     .collect();
+# Ok(())
+# }
 ```
  */
 pub fn calculate_tangents(
@@ -111,13 +161,12 @@ pub fn calculate_tangents(
     normals: &[Vec3A],
     uvs: &[Vec2],
     indices: &[u32],
-) -> Vec<Vec4> {
-    // TODO: This may eventually return some sort of error.
-    let (tangents, bitangents) = calculate_tangents_bitangents(positions, normals, uvs, indices);
+) -> Result<Vec<Vec4>, TangentBitangentError> {
+    let (tangents, bitangents) = calculate_tangents_bitangents(positions, normals, uvs, indices)?;
 
     // Compute the w component for each tangent.
     // TODO: Compute this without computing and immediately discarding bitangent vectors?
-    tangents
+    let tangents_with_w = tangents
         .iter()
         .zip(bitangents.iter())
         .zip(normals.iter())
@@ -125,11 +174,12 @@ pub fn calculate_tangents(
             let w = calculate_tangent_w(t, b, n);
             Vec4::new(t.x, t.y, t.z, w)
         })
-        .collect()
+        .collect();
+    Ok(tangents_with_w)
 }
 
 /// Calculates the tangent sign of 1.0 or -1.0, which is often stored in the W component for a 4 component tangent vector.
-/// The tangent sign is used to flip the generated bitangent to account for mirrored (overlapping) texture coordinates. 
+/// The tangent sign is used to flip the generated bitangent to account for mirrored (overlapping) texture coordinates.
 /// Depending on the conventions of the game or application, it may be necessary to multiply the returned value by -1.0.
 /// # Examples
 /**
@@ -402,7 +452,7 @@ mod tests {
         ];
 
         let (tangents, bitangents) =
-            calculate_tangents_bitangents(&positions, &normals, &uvs, &[0, 1, 2]);
+            calculate_tangents_bitangents(&positions, &normals, &uvs, &[0, 1, 2]).unwrap();
 
         assert_eq!(3, tangents.len());
         assert_eq!(3, bitangents.len());
@@ -441,7 +491,7 @@ mod tests {
             Vec2::new(1.0, 1.0),
         ];
 
-        let tangents = calculate_tangents(&positions, &normals, &uvs, &[0, 1, 2]);
+        let tangents = calculate_tangents(&positions, &normals, &uvs, &[0, 1, 2]).unwrap();
         let bitangents: Vec<Vec3A> = tangents
             .iter()
             .zip(normals.iter())
@@ -476,7 +526,8 @@ mod tests {
             &cube_normals(),
             &cube_uvs(),
             &cube_indices(),
-        );
+        )
+        .unwrap();
 
         assert_eq!(24, tangents.len());
         assert_eq!(24, bitangents.len());
@@ -489,26 +540,59 @@ mod tests {
     }
 
     #[test]
+    fn triangle_list_not_enough_indices() {
+        let positions = vec![Vec3A::ZERO; 5];
+        let normals = vec![Vec3A::ZERO; 5];
+        let uvs = vec![Vec2::ZERO; 5];
+        let indices = vec![0, 1, 2, 3, 4];
+
+        match calculate_tangents_bitangents(&positions, &normals, &uvs, &indices) {
+            Err(TangentBitangentError::InvalidIndexCont { index_count }) => {
+                assert_eq!(5, index_count)
+            }
+            _ => panic!("Unexpected variant"),
+        };
+    }
+
+    #[test]
     fn triangle_list_no_vertices() {
-        let (tangents, bitangents) = calculate_tangents_bitangents(&[], &[], &[], &[]);
+        let (tangents, bitangents) = calculate_tangents_bitangents(&[], &[], &[], &[]).unwrap();
 
         assert!(tangents.is_empty());
         assert!(bitangents.is_empty());
     }
 
-    // TODO: Enable these tests once the return type is fixed.
     #[test]
-    #[ignore]
-    #[should_panic(expected = "Vector source lengths do not match.")]
+    #[should_panic]
     fn triangle_list_incorrect_normals_count() {
-        calculate_tangents_bitangents(&[], &[Vec3A::ZERO], &[], &[]);
+        match calculate_tangents_bitangents(&[], &[Vec3A::ZERO], &[], &[]) {
+            Err(TangentBitangentError::AttributeCountMismatch {
+                position_count,
+                normal_count,
+                uv_count,
+            }) => {
+                assert_eq!(1, position_count);
+                assert_eq!(0, normal_count);
+                assert_eq!(0, uv_count);
+            }
+            _ => panic!("Unexpected variant"),
+        };
     }
 
     #[test]
-    #[ignore]
-    #[should_panic(expected = "Vector source lengths do not match.")]
     fn triangle_list_incorrect_uvs_count() {
-        calculate_tangents_bitangents(&[], &[], &[Vec2::ZERO], &[]);
+        match calculate_tangents_bitangents(&[], &[Vec3A::ZERO], &[Vec2::ZERO], &[]) {
+            Err(TangentBitangentError::AttributeCountMismatch {
+                position_count,
+                normal_count,
+                uv_count,
+            }) => {
+                assert_eq!(0, position_count);
+                assert_eq!(1, normal_count);
+                assert_eq!(1, uv_count);
+            }
+            _ => panic!("Unexpected variant"),
+        };
     }
 
     fn is_good_tangent_bitangent(tangent: &Vec3A, bitangent: &Vec3A) -> bool {

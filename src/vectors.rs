@@ -7,9 +7,8 @@ pub use tangent::*;
 pub(crate) mod normal;
 pub(crate) mod tangent;
 
-// TODO: Is there a way for this to work with vec2 and vec4 as well?
-/// Returns a normalized vector based on `target` that is orthogonal to `source` using the Gran-Schmidt process.
 fn orthonormalize(target: &Vec3A, source: &Vec3A) -> Vec3A {
+    // Returns a normalized vector based on `target` that is orthogonal to `source` using the Gran-Schmidt process.
     Vec3A::normalize(*target - *source * source.dot(*target))
 }
 
