@@ -15,20 +15,22 @@ pub fn calculate_smooth_normals(positions: &[Vec3A], indices: &[u32]) -> Vec<Vec
 
 // Use an existing piece of memory for the result to make FFI easier.
 // This allows another language such as C# to manage its own memory.
-pub(crate) fn update_smooth_normals(positions: &[Vec3A], normals: &mut [Vec3A], indices: &[u32]) {
-    for i in (0..indices.len()).step_by(3) {
-        let i0 = indices[i] as usize;
-        let i1 = indices[i + 1] as usize;
-        let i2 = indices[i + 2] as usize;
-
-        let normal = calculate_normal(&positions[i0], &positions[i1], &positions[i2]);
-        normals[i0] += normal;
-        normals[i1] += normal;
-        normals[i2] += normal;
+fn update_smooth_normals(positions: &[Vec3A], normals: &mut [Vec3A], indices: &[u32]) {
+    for face in indices.chunks(3) {
+        if let [v0, v1, v2] = face {
+            let normal = calculate_normal(
+                &positions[*v0 as usize],
+                &positions[*v1 as usize],
+                &positions[*v2 as usize],
+            );
+            normals[*v0 as usize] += normal;
+            normals[*v1 as usize] += normal;
+            normals[*v2 as usize] += normal;
+        }
     }
 
     for normal in normals.iter_mut() {
-        *normal = normal.normalize();
+        *normal = normal.normalize_or_zero();
     }
 }
 
@@ -142,6 +144,24 @@ mod tests {
         assert_relative_eq!(1f32, normals[0].length(), epsilon = EPSILON);
         assert_relative_eq!(1f32, normals[1].length(), epsilon = EPSILON);
         assert_relative_eq!(1f32, normals[2].length(), epsilon = EPSILON);
+    }
+
+    #[test]
+    fn smooth_normals_zero_normal() {
+        let points = vec![
+            Vec3A::X,
+            Vec3A::X,
+            Vec3A::X,
+        ];
+
+        let normals = calculate_smooth_normals(&points, &[0, 1, 2]);
+
+        // Check for divide by 0 when normalizing.
+        for normal in normals {
+            assert_relative_eq!(0.0, normal.x, epsilon = EPSILON);
+            assert_relative_eq!(0.0, normal.y, epsilon = EPSILON);
+            assert_relative_eq!(0.0, normal.z, epsilon = EPSILON);
+        }
     }
 
     #[test]

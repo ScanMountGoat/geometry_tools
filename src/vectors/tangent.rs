@@ -33,6 +33,8 @@ pub enum TangentBitangentError {
     InvalidIndexCont { index_count: usize },
 }
 
+// TODO: Rewrite these functions to update existing array to better support ffi.
+
 /// Calculates smooth per-vertex tangents and bitangents by averaging over the vertices in each face.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
 /// If either of `positions` or `indices` is empty, the result is empty.
@@ -59,7 +61,7 @@ pub fn calculate_tangents_bitangents(
     uvs: &[Vec2],
     indices: &[u32],
 ) -> Result<(Vec<Vec3A>, Vec<Vec3A>), TangentBitangentError> {
-    // TODO: Empty lists?
+    // TODO: This can be generic over the face count?
     if indices.len() % 3 != 0 {
         return Err(TangentBitangentError::InvalidIndexCont {
             index_count: indices.len(),
@@ -77,50 +79,51 @@ pub fn calculate_tangents_bitangents(
     let mut tangents = vec![Vec3A::ZERO; positions.len()];
     let mut bitangents = vec![Vec3A::ZERO; positions.len()];
 
-    // TODO: Rewrite this to be more idiomatic.
-    // TODO: There's a nicer way to find each chunk of three indices.
     // Calculate the vectors.
-    for i in (0..indices.len()).step_by(3) {
-        let (tangent, bitangent) = calculate_tangent_bitangent(
-            &positions[indices[i] as usize],
-            &positions[indices[i + 1] as usize],
-            &positions[indices[i + 2] as usize],
-            &uvs[indices[i] as usize],
-            &uvs[indices[i + 1] as usize],
-            &uvs[indices[i + 2] as usize],
-        );
+    for face in indices.chunks(3) {
+        if let [v0, v1, v2] = face {
+            let (tangent, bitangent) = calculate_tangent_bitangent(
+                &positions[*v0 as usize],
+                &positions[*v1 as usize],
+                &positions[*v2 as usize],
+                &uvs[*v0 as usize],
+                &uvs[*v1 as usize],
+                &uvs[*v2 as usize],
+            );
 
-        tangents[indices[i] as usize] += tangent;
-        tangents[indices[i + 1] as usize] += tangent;
-        tangents[indices[i + 2] as usize] += tangent;
+            tangents[*v0 as usize] += tangent;
+            tangents[*v1 as usize] += tangent;
+            tangents[*v2 as usize] += tangent;
 
-        bitangents[indices[i] as usize] += bitangent;
-        bitangents[indices[i + 1] as usize] += bitangent;
-        bitangents[indices[i + 2] as usize] += bitangent;
+            bitangents[*v0 as usize] += bitangent;
+            bitangents[*v1 as usize] += bitangent;
+            bitangents[*v2 as usize] += bitangent;
+        }
     }
 
     // Even if the vectors are not zero, they may still sum to zero.
-    for i in 0..tangents.len() {
-        if tangents[i].length_squared() == 0.0 {
-            tangents[i] = DEFAULT_TANGENT;
+    for tangent in tangents.iter_mut() {
+        if tangent.length_squared() == 0.0 {
+            *tangent = DEFAULT_TANGENT;
         }
 
-        if bitangents[i].length_squared() == 0.0 {
-            bitangents[i] = DEFAULT_BITANGENT;
+        *tangent = tangent.normalize_or_zero();
+    }
+
+    for bitangent in bitangents.iter_mut() {
+        if bitangent.length_squared() == 0.0 {
+            *bitangent = DEFAULT_BITANGENT;
         }
     }
 
-    // Account for mirrored normal maps.
-    for i in 0..bitangents.len() {
+    for (bitangent, normal) in bitangents.iter_mut().zip(normals.iter()) {
+        // Account for mirrored normal maps.
         // The default bitangent may be parallel to the normal vector.
-        if bitangents[i].cross(normals[i]).length_squared() != 0.0 {
-            bitangents[i] = orthonormalize(&bitangents[i], &normals[i]);
+        if bitangent.cross(*normal).length_squared() != 0.0 {
+            *bitangent = orthonormalize(bitangent, normal);
         }
-    }
 
-    for i in 0..tangents.len() {
-        tangents[i] = tangents[i].normalize();
-        bitangents[i] = bitangents[i].normalize();
+        *bitangent = bitangent.normalize_or_zero();
     }
 
     Ok((tangents, bitangents))
