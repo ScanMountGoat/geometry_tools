@@ -7,7 +7,7 @@ use glam::Vec3A;
 /// # Examples
 /**
 ```rust
-use geometry_tools::calculate_bounding_sphere_from_points;
+use geometry_tools::bounding::calculate_bounding_sphere_from_points;
 use glam::Vec3A;
 
 let points = vec![
@@ -24,7 +24,7 @@ assert_eq!(1f32, radius);
 /// If `points` is empty, the center and radius will both be zero.
 /**
 ```rust
-# use geometry_tools::calculate_bounding_sphere_from_points;
+# use geometry_tools::bounding::calculate_bounding_sphere_from_points;
 # use glam::Vec3A;
 let bounding_sphere = calculate_bounding_sphere_from_points(&[]);
 assert_eq!((Vec3A::ZERO, 0f32), bounding_sphere);
@@ -69,7 +69,7 @@ assert_eq!(max, Vec3A::new( 2f32,  2f32,  2f32));
 /// If `points` is empty, both `min_xyz` and `max_xyz` will be zero.
 /**
 ```rust
-# use geometry_tools::calculate_aabb_from_points;
+# use geometry_tools::bounding::calculate_aabb_from_points;
 # use glam::Vec3A;
 let aabb = calculate_aabb_from_points(&[]);
 assert_eq!((Vec3A::ZERO, Vec3A::ZERO), aabb);

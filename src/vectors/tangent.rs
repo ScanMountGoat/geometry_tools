@@ -10,8 +10,6 @@ pub const DEFAULT_TANGENT: Vec3A = Vec3A::X;
 /// The bitangent value returned when any component is `NaN` or infinite.
 pub const DEFAULT_BITANGENT: Vec3A = Vec3A::Y;
 
-// TODO: Add a function to calculate 4 component tangents directly.
-
 /// Calculates smooth per-vertex tangents and bitangents by averaging over the vertices in each face.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
 /// If either of `positions` or `indices` is empty, the result is empty.
@@ -71,8 +69,6 @@ pub fn calculate_tangents_bitangents(
         if bitangents[i].cross(normals[i]).length_squared() != 0.0 {
             bitangents[i] = orthonormalize(&bitangents[i], &normals[i]);
         }
-        // TODO: Document why this flip is necessary.
-        bitangents[i] *= -1.0;
     }
 
     for i in 0..tangents.len() {
@@ -102,6 +98,7 @@ use glam::Vec3A;
 let tangents = calculate_tangents(&positions, &normals, &uvs, &indices);
 
 // This step is often done by shader code for the GPU.
+// Some applications require multiplying the resulting bitangents by -1.0.
 let bitangents: Vec<Vec3A> = tangents
     .iter()
     .zip(normals.iter())
@@ -132,7 +129,8 @@ pub fn calculate_tangents(
 }
 
 /// Calculates the tangent sign of 1.0 or -1.0, which is often stored in the W component for a 4 component tangent vector.
-/// The bitangent can be generated from the tangent and normal vector.
+/// The tangent sign is used to flip the generated bitangent to account for mirrored (overlapping) texture coordinates. 
+/// Depending on the conventions of the game or application, it may be necessary to multiply the returned value by -1.0.
 /// # Examples
 /**
 ```rust
@@ -143,6 +141,7 @@ use geometry_tools::vectors::calculate_tangent_w;
 # let normal = glam::Vec3A::ZERO;
 let tangent_w = calculate_tangent_w(&tangent, &bitangent, &normal);
 
+// The bitangent can be generated from the tangent and normal vector.
 // This step is often done by shader code for the GPU.
 let bitangent = normal.cross(tangent) * tangent_w;
 ```
@@ -417,9 +416,8 @@ mod tests {
 
         // The bitangent should be orthogonal to the tangent and normal.
         // The only option in this case is to use the x-axis.
-        // TODO: Why is the sign flip necessary?
         for bitangent in bitangents {
-            assert_relative_eq!(-1.0, bitangent.x, epsilon = EPSILON);
+            assert_relative_eq!(1.0, bitangent.x, epsilon = EPSILON);
             assert_relative_eq!(0.0, bitangent.y, epsilon = EPSILON);
             assert_relative_eq!(0.0, bitangent.z, epsilon = EPSILON);
         }
@@ -464,7 +462,6 @@ mod tests {
 
         // The bitangent should be orthogonal to the tangent and normal.
         // The only option in this case is to use the x-axis.
-        // TODO: Why is the sign flip necessary?
         for bitangent in bitangents {
             assert_relative_eq!(-1.0, bitangent.x, epsilon = EPSILON);
             assert_relative_eq!(0.0, bitangent.y, epsilon = EPSILON);
@@ -528,7 +525,7 @@ mod tests {
         let tangent = Vec3A::new(0.0, 1.0, 0.0);
         let bitangent = Vec3A::new(1.0, 0.0, 0.0);
         let normal = Vec3A::new(0.0, 0.0, 1.0);
-        let w = calculate_tangent_w(&normal, &tangent, &bitangent);
+        let w = calculate_tangent_w(&tangent, &bitangent, &normal);
         assert_eq!(-1.0, w);
     }
 
@@ -539,7 +536,7 @@ mod tests {
         let tangent = Vec3A::new(1.0, 0.0, 0.0);
         let bitangent = Vec3A::new(0.0, 1.0, 0.0);
         let normal = Vec3A::new(0.0, 0.0, 1.0);
-        let w = calculate_tangent_w(&normal, &tangent, &bitangent);
+        let w = calculate_tangent_w(&tangent, &bitangent, &normal);
         assert_eq!(1.0, w);
     }
 
@@ -549,7 +546,7 @@ mod tests {
         let tangent = Vec3A::new(1.0, 0.0, 0.0);
         let bitangent = Vec3A::new(0.0, 1.0, 0.0);
         let normal = Vec3A::new(1.0, 0.0, 0.0);
-        let w = calculate_tangent_w(&normal, &tangent, &bitangent);
+        let w = calculate_tangent_w(&tangent, &bitangent, &normal);
         assert_eq!(1.0, w);
     }
 }
