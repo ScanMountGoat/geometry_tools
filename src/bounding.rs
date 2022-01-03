@@ -5,8 +5,8 @@ use glam::Vec3A;
 // TODO: Use a special struct for the result?
 // ex: BoundingSphere::from_points
 
-/// Calculates a bounding sphere of the form `(center, radius)` that containts all the specified points.
-/// The returned result will contain all points but may be larger than the optimal solution.
+/// Calculates a bounding sphere of the form `(center, radius)` that contains all the specified points.
+/// The returned result may be larger than the optimal solution.
 /// # Examples
 /**
 ```rust
@@ -14,9 +14,9 @@ use geometry_tools::bounding::calculate_bounding_sphere_from_points;
 use glam::Vec3A;
 
 let points = vec![
-    Vec3A::new(0f32, -1f32, -0f32),
-    Vec3A::new(0f32,  0f32,  0f32),
-    Vec3A::new(0f32,  1f32,  0f32),
+    Vec3A::new(0f32, -1f32, 0f32),
+    Vec3A::new(0f32,  0f32, 0f32),
+    Vec3A::new(0f32,  1f32, 0f32),
 ];
 
 let (center, radius) = calculate_bounding_sphere_from_points(&points);
@@ -53,6 +53,35 @@ pub fn calculate_bounding_sphere_from_points(points: &[Vec3A]) -> (Vec3A, f32) {
     (center, radius_squared.sqrt())
 }
 
+/// Calculates a bounding sphere of the form `(center, radius)` that contains all the specified bounding spheres.
+/// The returned result may be larger than the optimal solution.
+/// 
+/// # Examples
+/**
+```rust
+use geometry_tools::bounding::calculate_bounding_sphere_from_spheres;
+use glam::Vec3A;
+
+let spheres = vec![
+    (Vec3A::new(0f32, -1f32, 0f32), 1.0),
+    (Vec3A::new(0f32,  0f32, 0f32), 1.0),
+    (Vec3A::new(0f32,  1f32, 0f32), 1.0),
+];
+
+let (center, radius) = calculate_bounding_sphere_from_spheres(&spheres);
+assert_eq!(Vec3A::ZERO, center);
+assert_eq!(2f32, radius);
+```
+ */
+/// If `spheres` is empty, the center and radius will both be zero.
+/**
+```rust
+# use geometry_tools::bounding::calculate_bounding_sphere_from_spheres;
+# use glam::Vec3A;
+let bounding_sphere = calculate_bounding_sphere_from_spheres(&[]);
+assert_eq!((Vec3A::ZERO, 0f32), bounding_sphere);
+```
+ */
 pub fn calculate_bounding_sphere_from_spheres(spheres: &[(Vec3A, f32)]) -> (Vec3A, f32) {
     if spheres.is_empty() {
         return (Vec3A::ZERO, 0f32);
