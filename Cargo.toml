@@ -1,7 +1,7 @@
 [package]
 name = "geometry_tools"
 version = "0.4.1"
-authors = ["ScanMountGoat <>"]
+authors = ["ScanMountGoat"]
 description = "Efficient computation of single precision geometric data"
 license = "MIT"
 documentation = "https://docs.rs/geometry_tools"
@@ -12,7 +12,7 @@ edition = "2018"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-glam = "0.21.3"
+glam = "0.22.0"
 thiserror = "1.0"
 
 [dev-dependencies]
