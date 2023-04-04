@@ -55,7 +55,7 @@ pub fn calculate_bounding_sphere_from_points(points: &[Vec3A]) -> (Vec3A, f32) {
 
 /// Calculates a bounding sphere of the form `(center, radius)` that contains all the specified bounding spheres.
 /// The returned result may be larger than the optimal solution.
-/// 
+///
 /// # Examples
 /**
 ```rust

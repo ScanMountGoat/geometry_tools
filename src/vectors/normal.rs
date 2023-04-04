@@ -148,11 +148,7 @@ mod tests {
 
     #[test]
     fn smooth_normals_zero_normal() {
-        let points = vec![
-            Vec3A::X,
-            Vec3A::X,
-            Vec3A::X,
-        ];
+        let points = vec![Vec3A::X, Vec3A::X, Vec3A::X];
 
         let normals = calculate_smooth_normals(&points, &[0, 1, 2]);
 
