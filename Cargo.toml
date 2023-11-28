@@ -17,3 +17,28 @@ thiserror = "1.0"
 
 [dev-dependencies]
 approx = "0.4.0"
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "aabb_from_points"
+harness = false
+
+[[bench]]
+name = "bounding_sphere_from_points"
+harness = false
+
+[[bench]]
+name = "bounding_sphere_from_spheres"
+harness = false
+
+[[bench]]
+name = "smooth_normals"
+harness = false
+
+[[bench]]
+name = "tangents_bitangents"
+harness = false
+
+[[bench]]
+name = "tangents"
+harness = false
