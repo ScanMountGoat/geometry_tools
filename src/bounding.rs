@@ -94,16 +94,11 @@ pub fn calculate_bounding_sphere_from_spheres(spheres: &[(Vec3A, f32)]) -> (Vec3
     // This is a simple extension of testing for sphere-sphere intersection.
     // We want the distance between centers to not exceed the sum of the radii.
     // We iteratively increase the radius for each sphere.
-    // TODO: Share code with above?
-    let mut radius = 0f32;
-    for length in spheres
+    let radius = spheres
         .iter()
         .map(|(center2, radius2)| center2.distance(center) + radius2)
-    {
-        if length > radius {
-            radius = length;
-        }
-    }
+        .reduce(f32::max)
+        .unwrap_or_default();
 
     (center, radius)
 }
