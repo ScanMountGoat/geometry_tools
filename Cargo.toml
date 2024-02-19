@@ -6,13 +6,13 @@ description = "Efficient computation of single precision geometric data"
 license = "MIT"
 documentation = "https://docs.rs/geometry_tools"
 repository = "https://github.com/ScanMountGoat/geometry_tools"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-glam = "0.24.0"
+glam = "0.25.0"
 thiserror = "1.0"
 
 [dev-dependencies]
