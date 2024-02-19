@@ -1,6 +1,6 @@
 [package]
 name = "geometry_tools"
-version = "0.4.2"
+version = "0.5.0"
 authors = ["ScanMountGoat"]
 description = "Efficient computation of single precision geometric data"
 license = "MIT"
