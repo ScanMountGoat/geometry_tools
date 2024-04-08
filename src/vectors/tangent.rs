@@ -55,15 +55,17 @@ let (tangents, bitangents) = calculate_tangents_bitangents(&positions, &normals,
 # }
 ```
  */
-pub fn calculate_tangents_bitangents<P, N>(
+pub fn calculate_tangents_bitangents<P, N, I>(
     positions: &[P],
     normals: &[N],
     uvs: &[Vec2],
-    indices: &[u32],
+    indices: &[I],
 ) -> Result<(Vec<Vec3A>, Vec<Vec3A>), TangentBitangentError>
 where
     P: Into<Vec3A> + Copy,
     N: Into<Vec3A> + Copy,
+    I: TryInto<usize> + Copy,
+    <I as TryInto<usize>>::Error: std::fmt::Debug,
 {
     // TODO: This can be generic over the face count?
     if indices.len() % 3 != 0 {
@@ -86,22 +88,25 @@ where
     // Calculate the vectors.
     for face in indices.chunks(3) {
         if let [v0, v1, v2] = face {
+            let v0 = (*v0).try_into().unwrap();
+            let v1 = (*v1).try_into().unwrap();
+            let v2 = (*v2).try_into().unwrap();
             let (tangent, bitangent) = calculate_tangent_bitangent(
-                &positions[*v0 as usize].into(),
-                &positions[*v1 as usize].into(),
-                &positions[*v2 as usize].into(),
-                &uvs[*v0 as usize],
-                &uvs[*v1 as usize],
-                &uvs[*v2 as usize],
+                &positions[v0].into(),
+                &positions[v1].into(),
+                &positions[v2].into(),
+                &uvs[v0],
+                &uvs[v1],
+                &uvs[v2],
             );
 
-            tangents[*v0 as usize] += tangent;
-            tangents[*v1 as usize] += tangent;
-            tangents[*v2 as usize] += tangent;
+            tangents[v0] += tangent;
+            tangents[v1] += tangent;
+            tangents[v2] += tangent;
 
-            bitangents[*v0 as usize] += bitangent;
-            bitangents[*v1 as usize] += bitangent;
-            bitangents[*v2 as usize] += bitangent;
+            bitangents[v0] += bitangent;
+            bitangents[v1] += bitangent;
+            bitangents[v2] += bitangent;
         }
     }
 
@@ -164,15 +169,17 @@ let bitangents: Vec<Vec3A> = tangents
 # }
 ```
  */
-pub fn calculate_tangents<P, N>(
+pub fn calculate_tangents<P, N, I>(
     positions: &[P],
     normals: &[N],
     uvs: &[Vec2],
-    indices: &[u32],
+    indices: &[I],
 ) -> Result<Vec<Vec4>, TangentBitangentError>
 where
     P: Into<Vec3A> + Copy,
     N: Into<Vec3A> + Copy,
+    I: TryInto<usize> + Copy,
+    <I as TryInto<usize>>::Error: std::fmt::Debug,
 {
     let (tangents, bitangents) = calculate_tangents_bitangents(positions, normals, uvs, indices)?;
 
@@ -465,7 +472,7 @@ mod tests {
         ];
 
         let (tangents, bitangents) =
-            calculate_tangents_bitangents(&positions, &normals, &uvs, &[0, 1, 2]).unwrap();
+            calculate_tangents_bitangents(&positions, &normals, &uvs, &[0u16, 1u16, 2u16]).unwrap();
 
         assert_eq!(3, tangents.len());
         assert_eq!(3, bitangents.len());
@@ -504,7 +511,7 @@ mod tests {
             Vec2::new(1.0, 1.0),
         ];
 
-        let tangents = calculate_tangents(&positions, &normals, &uvs, &[0, 1, 2]).unwrap();
+        let tangents = calculate_tangents(&positions, &normals, &uvs, &[0u16, 1u16, 2u16]).unwrap();
         let bitangents: Vec<Vec3A> = tangents
             .iter()
             .zip(normals.iter())
@@ -568,7 +575,7 @@ mod tests {
     #[test]
     fn triangle_list_no_vertices() {
         let (tangents, bitangents) =
-            calculate_tangents_bitangents::<Vec3A, Vec3A>(&[], &[], &[], &[]).unwrap();
+            calculate_tangents_bitangents::<Vec3A, Vec3A, u32>(&[], &[], &[], &[]).unwrap();
 
         assert!(tangents.is_empty());
         assert!(bitangents.is_empty());
@@ -577,7 +584,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn triangle_list_incorrect_normals_count() {
-        match calculate_tangents_bitangents::<Vec3A, _>(&[], &[Vec3A::ZERO], &[], &[]) {
+        match calculate_tangents_bitangents::<Vec3A, _, u32>(&[], &[Vec3A::ZERO], &[], &[]) {
             Err(TangentBitangentError::AttributeCountMismatch {
                 position_count,
                 normal_count,
@@ -593,7 +600,12 @@ mod tests {
 
     #[test]
     fn triangle_list_incorrect_uvs_count() {
-        match calculate_tangents_bitangents::<Vec3A, _>(&[], &[Vec3A::ZERO], &[Vec2::ZERO], &[]) {
+        match calculate_tangents_bitangents::<Vec3A, _, u32>(
+            &[],
+            &[Vec3A::ZERO],
+            &[Vec2::ZERO],
+            &[],
+        ) {
             Err(TangentBitangentError::AttributeCountMismatch {
                 position_count,
                 normal_count,
