@@ -55,12 +55,16 @@ let (tangents, bitangents) = calculate_tangents_bitangents(&positions, &normals,
 # }
 ```
  */
-pub fn calculate_tangents_bitangents(
-    positions: &[Vec3A],
-    normals: &[Vec3A],
+pub fn calculate_tangents_bitangents<P, N>(
+    positions: &[P],
+    normals: &[N],
     uvs: &[Vec2],
     indices: &[u32],
-) -> Result<(Vec<Vec3A>, Vec<Vec3A>), TangentBitangentError> {
+) -> Result<(Vec<Vec3A>, Vec<Vec3A>), TangentBitangentError>
+where
+    P: Into<Vec3A> + Copy,
+    N: Into<Vec3A> + Copy,
+{
     // TODO: This can be generic over the face count?
     if indices.len() % 3 != 0 {
         return Err(TangentBitangentError::InvalidIndexCont {
@@ -83,9 +87,9 @@ pub fn calculate_tangents_bitangents(
     for face in indices.chunks(3) {
         if let [v0, v1, v2] = face {
             let (tangent, bitangent) = calculate_tangent_bitangent(
-                &positions[*v0 as usize],
-                &positions[*v1 as usize],
-                &positions[*v2 as usize],
+                &positions[*v0 as usize].into(),
+                &positions[*v1 as usize].into(),
+                &positions[*v2 as usize].into(),
                 &uvs[*v0 as usize],
                 &uvs[*v1 as usize],
                 &uvs[*v2 as usize],
@@ -119,8 +123,9 @@ pub fn calculate_tangents_bitangents(
     for (bitangent, normal) in bitangents.iter_mut().zip(normals.iter()) {
         // Account for mirrored normal maps.
         // The default bitangent may be parallel to the normal vector.
-        if bitangent.cross(*normal).length_squared() != 0.0 {
-            *bitangent = orthonormalize(bitangent, normal);
+        let normal = (*normal).into();
+        if bitangent.cross(normal).length_squared() != 0.0 {
+            *bitangent = orthonormalize(bitangent, &normal);
         }
 
         *bitangent = bitangent.normalize_or_zero();
@@ -159,12 +164,16 @@ let bitangents: Vec<Vec3A> = tangents
 # }
 ```
  */
-pub fn calculate_tangents(
-    positions: &[Vec3A],
-    normals: &[Vec3A],
+pub fn calculate_tangents<P, N>(
+    positions: &[P],
+    normals: &[N],
     uvs: &[Vec2],
     indices: &[u32],
-) -> Result<Vec<Vec4>, TangentBitangentError> {
+) -> Result<Vec<Vec4>, TangentBitangentError>
+where
+    P: Into<Vec3A> + Copy,
+    N: Into<Vec3A> + Copy,
+{
     let (tangents, bitangents) = calculate_tangents_bitangents(positions, normals, uvs, indices)?;
 
     // Compute the w component for each tangent.
@@ -174,7 +183,7 @@ pub fn calculate_tangents(
         .zip(bitangents.iter())
         .zip(normals.iter())
         .map(|((t, b), n)| {
-            let w = calculate_tangent_w(t, b, n);
+            let w = calculate_tangent_w(*t, *b, (*n).into());
             Vec4::new(t.x, t.y, t.z, w)
         })
         .collect();
@@ -192,16 +201,17 @@ use geometry_tools::vectors::calculate_tangent_w;
 # let tangent = glam::Vec3A::ZERO;
 # let bitangent = glam::Vec3A::ZERO;
 # let normal = glam::Vec3A::ZERO;
-let tangent_w = calculate_tangent_w(&tangent, &bitangent, &normal);
+let tangent_w = calculate_tangent_w(tangent, bitangent, normal);
 
 // The bitangent can be generated from the tangent and normal vector.
 // This step is often done by shader code for the GPU.
 let bitangent = normal.cross(tangent) * tangent_w;
 ```
 */
-pub fn calculate_tangent_w(tangent: &Vec3A, bitangent: &Vec3A, normal: &Vec3A) -> f32 {
+#[inline]
+pub fn calculate_tangent_w(tangent: Vec3A, bitangent: Vec3A, normal: Vec3A) -> f32 {
     // 0.0 should stil return 1.0 to avoid generating black bitangents.
-    if tangent.cross(*bitangent).dot(*normal) >= 0.0 {
+    if tangent.cross(bitangent).dot(normal) >= 0.0 {
         1.0
     } else {
         -1.0
@@ -500,8 +510,6 @@ mod tests {
             .zip(normals.iter())
             .map(|(t, n)| Vec3A::from(*t).cross(*n) * t.w)
             .collect();
-        dbg!(&tangents);
-        dbg!(&bitangents);
 
         assert_eq!(3, tangents.len());
         assert_eq!(3, bitangents.len());
@@ -559,7 +567,8 @@ mod tests {
 
     #[test]
     fn triangle_list_no_vertices() {
-        let (tangents, bitangents) = calculate_tangents_bitangents(&[], &[], &[], &[]).unwrap();
+        let (tangents, bitangents) =
+            calculate_tangents_bitangents::<Vec3A, Vec3A>(&[], &[], &[], &[]).unwrap();
 
         assert!(tangents.is_empty());
         assert!(bitangents.is_empty());
@@ -568,7 +577,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn triangle_list_incorrect_normals_count() {
-        match calculate_tangents_bitangents(&[], &[Vec3A::ZERO], &[], &[]) {
+        match calculate_tangents_bitangents::<Vec3A, _>(&[], &[Vec3A::ZERO], &[], &[]) {
             Err(TangentBitangentError::AttributeCountMismatch {
                 position_count,
                 normal_count,
@@ -584,7 +593,7 @@ mod tests {
 
     #[test]
     fn triangle_list_incorrect_uvs_count() {
-        match calculate_tangents_bitangents(&[], &[Vec3A::ZERO], &[Vec2::ZERO], &[]) {
+        match calculate_tangents_bitangents::<Vec3A, _>(&[], &[Vec3A::ZERO], &[Vec2::ZERO], &[]) {
             Err(TangentBitangentError::AttributeCountMismatch {
                 position_count,
                 normal_count,
@@ -612,7 +621,7 @@ mod tests {
         let tangent = Vec3A::new(0.0, 1.0, 0.0);
         let bitangent = Vec3A::new(1.0, 0.0, 0.0);
         let normal = Vec3A::new(0.0, 0.0, 1.0);
-        let w = calculate_tangent_w(&tangent, &bitangent, &normal);
+        let w = calculate_tangent_w(tangent, bitangent, normal);
         assert_eq!(-1.0, w);
     }
 
@@ -623,7 +632,7 @@ mod tests {
         let tangent = Vec3A::new(1.0, 0.0, 0.0);
         let bitangent = Vec3A::new(0.0, 1.0, 0.0);
         let normal = Vec3A::new(0.0, 0.0, 1.0);
-        let w = calculate_tangent_w(&tangent, &bitangent, &normal);
+        let w = calculate_tangent_w(tangent, bitangent, normal);
         assert_eq!(1.0, w);
     }
 
@@ -633,7 +642,7 @@ mod tests {
         let tangent = Vec3A::new(1.0, 0.0, 0.0);
         let bitangent = Vec3A::new(0.0, 1.0, 0.0);
         let normal = Vec3A::new(1.0, 0.0, 0.0);
-        let w = calculate_tangent_w(&tangent, &bitangent, &normal);
+        let w = calculate_tangent_w(tangent, bitangent, normal);
         assert_eq!(1.0, w);
     }
 }
