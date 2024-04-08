@@ -3,7 +3,10 @@ use glam::Vec3A;
 /// Calculates smooth per-vertex normals by by averaging over the vertices in each face.
 /// `indices` is assumed to contain triangle indices for `positions`, so `indices.len()` should be a multiple of 3.
 /// If either of `positions` or `indices` is empty, the result is empty.
-pub fn calculate_smooth_normals(positions: &[Vec3A], indices: &[u32]) -> Vec<Vec3A> {
+pub fn calculate_smooth_normals<P>(positions: &[P], indices: &[u32]) -> Vec<Vec3A>
+where
+    P: Into<Vec3A> + Copy,
+{
     if positions.is_empty() || indices.is_empty() {
         return Vec::new();
     }
@@ -15,13 +18,16 @@ pub fn calculate_smooth_normals(positions: &[Vec3A], indices: &[u32]) -> Vec<Vec
 
 // Use an existing piece of memory for the result to make FFI easier.
 // This allows another language such as C# to manage its own memory.
-fn update_smooth_normals(positions: &[Vec3A], normals: &mut [Vec3A], indices: &[u32]) {
+fn update_smooth_normals<P>(positions: &[P], normals: &mut [Vec3A], indices: &[u32])
+where
+    P: Into<Vec3A> + Copy,
+{
     for face in indices.chunks(3) {
         if let [v0, v1, v2] = face {
             let normal = calculate_normal(
-                &positions[*v0 as usize],
-                &positions[*v1 as usize],
-                &positions[*v2 as usize],
+                positions[*v0 as usize].into(),
+                positions[*v1 as usize].into(),
+                positions[*v2 as usize].into(),
             );
             normals[*v0 as usize] += normal;
             normals[*v1 as usize] += normal;
@@ -34,9 +40,10 @@ fn update_smooth_normals(positions: &[Vec3A], normals: &mut [Vec3A], indices: &[
     }
 }
 
-fn calculate_normal(v1: &Vec3A, v2: &Vec3A, v3: &Vec3A) -> Vec3A {
-    let u = *v2 - *v1;
-    let v = *v3 - *v1;
+#[inline(always)]
+fn calculate_normal(v1: Vec3A, v2: Vec3A, v3: Vec3A) -> Vec3A {
+    let u = v2 - v1;
+    let v = v3 - v1;
     u.cross(v)
 }
 
@@ -86,7 +93,7 @@ mod tests {
         let v1 = Vec3A::new(-5f32, 5f32, 1f32);
         let v2 = Vec3A::new(-5f32, 0f32, 1f32);
         let v3 = Vec3A::new(0f32, 0f32, 1f32);
-        let normal = calculate_normal(&v1, &v2, &v3).normalize();
+        let normal = calculate_normal(v1, v2, v3).normalize();
 
         assert_eq!(0f32, normal.x);
         assert_eq!(0f32, normal.y);
@@ -99,7 +106,7 @@ mod tests {
         let v1 = Vec3A::new(-5f32, 5f32, 1f32);
         let v2 = Vec3A::new(-5f32, 0f32, 1f32);
         let v3 = Vec3A::new(0f32, 0f32, 1f32);
-        let normal = calculate_normal(&v3, &v2, &v1).normalize();
+        let normal = calculate_normal(v3, v2, v1).normalize();
 
         assert_eq!(0f32, normal.x);
         assert_eq!(0f32, normal.y);
@@ -108,13 +115,13 @@ mod tests {
 
     #[test]
     fn smooth_normals_no_points_no_indices() {
-        let normals = calculate_smooth_normals(&[], &[]);
+        let normals = calculate_smooth_normals::<Vec3A>(&[], &[]);
         assert!(normals.is_empty());
     }
 
     #[test]
     fn smooth_normals_no_points() {
-        let normals = calculate_smooth_normals(&[], &[0, 1, 2]);
+        let normals = calculate_smooth_normals::<Vec3A>(&[], &[0, 1, 2]);
         assert!(normals.is_empty());
     }
 
@@ -126,7 +133,7 @@ mod tests {
             Vec3A::new(0f32, 0f32, 1f32),
         ];
 
-        let normals = calculate_smooth_normals(&points, &[]);
+        let normals = calculate_smooth_normals::<Vec3A>(&points, &[]);
         assert!(normals.is_empty());
     }
 
@@ -138,7 +145,7 @@ mod tests {
             Vec3A::new(0f32, 0f32, 1f32),
         ];
 
-        let normals = calculate_smooth_normals(&points, &[0, 1, 2]);
+        let normals = calculate_smooth_normals::<Vec3A>(&points, &[0, 1, 2]);
 
         // Ensure vectors are normalized.
         assert_relative_eq!(1f32, normals[0].length(), epsilon = EPSILON);
@@ -150,7 +157,7 @@ mod tests {
     fn smooth_normals_zero_normal() {
         let points = vec![Vec3A::X, Vec3A::X, Vec3A::X];
 
-        let normals = calculate_smooth_normals(&points, &[0, 1, 2]);
+        let normals = calculate_smooth_normals::<Vec3A>(&points, &[0, 1, 2]);
 
         // Check for divide by 0 when normalizing.
         for normal in normals {

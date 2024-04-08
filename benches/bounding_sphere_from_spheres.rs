@@ -2,7 +2,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use geometry_tools::bounding::calculate_bounding_sphere_from_spheres;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let spheres = vec![(glam::Vec3A::ZERO, 1.0); 10000];
+    let spheres = vec![glam::vec4(0.0, 0.0, 0.0, 1.0); 10000];
 
     c.bench_function("calculate_bounding_sphere_from_spheres", |b| {
         b.iter(|| calculate_bounding_sphere_from_spheres(black_box(&spheres)))
