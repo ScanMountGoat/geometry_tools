@@ -163,7 +163,7 @@ let tangents = calculate_tangents(&positions, &normals, &uvs, &indices)?;
 let bitangents: Vec<Vec3A> = tangents
     .iter()
     .zip(normals.iter())
-    .map(|(t, n)| Vec3A::from(*t).cross(*n) * t.w)
+    .map(|(t, n)| Vec3A::from_vec4(*t).cross(*n) * t.w)
     .collect();
 # Ok(())
 # }
@@ -515,7 +515,7 @@ mod tests {
         let bitangents: Vec<Vec3A> = tangents
             .iter()
             .zip(normals.iter())
-            .map(|(t, n)| Vec3A::from(*t).cross(*n) * t.w)
+            .map(|(t, n)| Vec3A::from_vec4(*t).cross(*n) * t.w)
             .collect();
 
         assert_eq!(3, tangents.len());

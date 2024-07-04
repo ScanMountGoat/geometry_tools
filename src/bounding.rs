@@ -92,7 +92,7 @@ pub fn calculate_bounding_sphere_from_spheres(spheres: &[Vec4]) -> Vec4 {
 
     // Use the simple approach of averaging the points as the center.
     let center: Vec3A =
-        spheres.iter().copied().map(Vec3A::from).sum::<Vec3A>() / spheres.len() as f32;
+        spheres.iter().copied().map(Vec3A::from_vec4).sum::<Vec3A>() / spheres.len() as f32;
 
     // Find the smallest radius that contains all spheres given a center.
     // This is a simple extension of testing for sphere-sphere intersection.
@@ -100,7 +100,7 @@ pub fn calculate_bounding_sphere_from_spheres(spheres: &[Vec4]) -> Vec4 {
     // We iteratively increase the radius for each sphere.
     let radius = spheres
         .iter()
-        .map(|sphere2| Vec3A::from(*sphere2).distance(center) + sphere2.w)
+        .map(|sphere2| Vec3A::from_vec4(*sphere2).distance(center) + sphere2.w)
         .reduce(f32::max)
         .unwrap_or_default();
 
