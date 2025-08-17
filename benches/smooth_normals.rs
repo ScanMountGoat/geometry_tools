@@ -1,4 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, Criterion};
 use geometry_tools::vectors::calculate_smooth_normals;
 
 fn criterion_benchmark(c: &mut Criterion) {

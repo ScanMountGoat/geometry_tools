@@ -12,12 +12,12 @@ edition = "2021"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-glam = "0.28.0"
-thiserror = "1.0"
+glam = "0.30.5"
+thiserror = "2.0"
 
 [dev-dependencies]
-approx = "0.4.0"
-criterion = { version = "0.4", features = ["html_reports"] }
+approx = "0.5.1"
+criterion = { version = "0.7", features = ["html_reports"] }
 
 [[bench]]
 name = "aabb_from_points"

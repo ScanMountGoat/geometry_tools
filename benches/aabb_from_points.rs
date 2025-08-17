@@ -1,4 +1,6 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
+
+use criterion::{criterion_group, criterion_main, Criterion};
 use geometry_tools::bounding::calculate_aabb_from_points;
 
 fn criterion_benchmark(c: &mut Criterion) {
