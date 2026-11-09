@@ -12,7 +12,7 @@ edition = "2021"
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-glam = "0.30.5"
+glam = "0.34.3"
 thiserror = "2.0"
 
 [dev-dependencies]
